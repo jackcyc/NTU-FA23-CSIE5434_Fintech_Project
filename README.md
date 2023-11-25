@@ -38,7 +38,7 @@
 * OS: Ubuntu 20.04
 * CPU: Intel i9-10900K
 * RAM: 128 GB
-* GPU: NVIDIA GeForce RTX 3090 *2
+* GPU: NVIDIA TITAN RTX *2
 * Python: 3.11
 * Create conda environment:
     ```
