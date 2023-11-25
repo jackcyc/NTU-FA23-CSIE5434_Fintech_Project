@@ -1,0 +1,19 @@
+{
+    "seed": 42,
+    "model_kwargs": {
+        "random_seed": 42,
+        "task_type": "GPU",
+        "devices": [
+            0,
+            1
+        ],
+        "auto_class_weights": "SqrtBalanced",
+        "eval_metric": "F1",
+        "iterations": 1000,
+        "depth": 12,
+        "l2_leaf_reg": 3
+    },
+    "fit_kwargs": {
+        "verbose": 200
+    }
+}

@@ -1,18 +1,39 @@
+"""
+This file is for making predictions using trained models.
+Input: trained models
+Output: predictions (result/output.csv)
+"""
 import os
+import sys
 import time
 
 import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score, precision_score, recall_score
 
-from preprocess import load_data, save_data
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from trainer import Trainer
+
+from utils import load_data, save_data
 
 SEED = 42
 np.random.seed(SEED)
 
 
 def sentinel(path):
+    """
+    Perform sentinel analysis on predictions.
+
+    Args:
+        path (str): The file path to the predictions CSV file.
+
+    Raises:
+        ValueError: If the 1 ratio in `pred_private` or `pred_public` is outside the range [0.0025, 0.005].
+
+    Returns:
+        None
+    """
     # load csv
     pred = pd.read_csv(path, engine="pyarrow")
     private = pd.read_csv("./data/dataset/private_1_processed.csv", engine="pyarrow")
@@ -42,7 +63,40 @@ def sentinel(path):
 
 
 class Predictor:
+    """
+    Class for making predictions using trained models.
+
+    Args:
+        paths (list): List of paths to the trained models.
+
+    Attributes:
+        model_solo (list): List of solo models.
+        model_multi (list): List of multi models.
+        input (tuple): Tuple containing the input data for prediction.
+        gt (tuple): Tuple containing the ground truth data.
+
+    Methods:
+        load_data: Load the data for prediction.
+        make_evaluation: Perform evaluation on the predicted results.
+        make_prediction: Make predictions using the trained models.
+        baseline: Perform baseline prediction using the specified method.
+        predict_proba: Predict the probabilities using the specified model type.
+        foward_multi: Perform forward prediction for multi models.
+        forward: Perform forward prediction using the trained models.
+        show_result: Display the evaluation results.
+        inference: Perform inference on the given paths and mode.
+    """
+
     def __init__(self, paths: list) -> None:
+        """
+        Initialize the class with a list of model paths.
+
+        Args:
+            paths (list): A list of paths to load models from.
+
+        Returns:
+            None
+        """
         self.model_solo = []
         self.model_multi = []
         for path in paths:
@@ -53,6 +107,15 @@ class Predictor:
             self.model_multi.append(multi)
 
     def load_data(self, dir: str) -> None:
+        """
+        Load the data for prediction.
+
+        Args:
+            dir (str): Directory path containing the data.
+
+        Raises:
+            AssertionError: If the directory name is not one of 'val', 'public', or 'private1'.
+        """
         name = os.path.basename(dir)
         assert name in {"val", "public", "private1"}
         # load data
@@ -73,7 +136,13 @@ class Predictor:
         self.input = (hist, nohist1, nohisto)
         self.gt = (hist_gt, nohist1_gt, nohisto_gt)
 
-    def make_evaluatoin(self, pred: pd.DataFrame) -> None:
+    def make_evaluation(self, pred: pd.DataFrame) -> None:
+        """
+        Perform evaluation on the predicted results.
+
+        Args:
+            pred (pd.DataFrame): DataFrame containing the predicted results.
+        """
         hist_gt, nohist1_gt, nohisto_gt = self.gt
         hist_pred_gt = hist_gt.merge(pred, on="txkey", how="left", validate="1:1")
         nohist1_pred_gt = nohist1_gt.merge(pred, on="txkey", how="left", validate="1:1")
@@ -95,6 +164,17 @@ class Predictor:
     def make_prediction(
         self, hist: pd.DataFrame, nohist1: pd.DataFrame, nohisto: pd.DataFrame
     ) -> pd.DataFrame:
+        """
+        Make predictions using the trained models.
+
+        Args:
+            hist (pd.DataFrame): DataFrame containing historical data.
+            nohist1 (pd.DataFrame): DataFrame containing non-historical data for the first transaction.
+            nohisto (pd.DataFrame): DataFrame containing non-historical data for other transactions.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the predicted results.
+        """
         hist = hist[["txkey", "pred"]]
         nohist1 = nohist1[["txkey", "pred"]]
         nohisto = nohisto[["txkey", "pred"]]
@@ -108,6 +188,18 @@ class Predictor:
         nohist1: pd.DataFrame,
         nohisto: pd.DataFrame,
     ) -> pd.DataFrame:
+        """
+        Perform baseline prediction using the specified method.
+
+        Args:
+            method (str): Method for baseline prediction. Should be one of 'solo', 'history', or 'history_solo'.
+            hist (pd.DataFrame): DataFrame containing historical data.
+            nohist1 (pd.DataFrame): DataFrame containing non-historical data for the first transaction.
+            nohisto (pd.DataFrame): DataFrame containing non-historical data for other transactions.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the predicted results.
+        """
         assert method in {"solo", "history", "history_solo"}
         solo_to_drop = ["txkey", "cano", "label"]
         multi_to_drop = ["txkey", "cano", "label", "time_diff", "fraudrate"]
@@ -137,7 +229,14 @@ class Predictor:
 
     def predict_proba(self, model_type: str, data: pd.DataFrame):
         """
-        Ensemble version of predict_proba
+        Predict the probabilities using the specified model type.
+
+        Args:
+            model_type (str): Type of the model. Should be one of 'solo' or 'multi'.
+            data (pd.DataFrame): DataFrame containing the input data.
+
+        Returns:
+            np.ndarray: Array containing the predicted probabilities.
         """
         assert model_type in {"solo", "multi"}
         preds = []
@@ -152,14 +251,13 @@ class Predictor:
 
     def foward_multi(self, data: pd.DataFrame):
         """
-        Input should contain:
-            ['loctm', 'conam', 'ecfg', 'insfg', 'iterm', 'bnsfg', 'flam1',
-            'ovrlt', 'csmam', 'flg_3dsmk', 'contp_0', 'contp_1', 'contp_2',
-            'contp_3', 'etymd_0', 'etymd_1', 'etymd_2', 'etymd_3', 'hcefg_0',
-            'hcefg_1', 'hcefg_2', 'hcefg_3', 'mcc_0', 'mcc_1', 'mcc_2', 'stocn_0',
-            'stocn_1', 'stocn_2', 'scity_0', 'scity_1', 'scity_2', 'csmcu_0',
-            'csmcu_1', 'csmcu_2', 'time_diff', 'fraudrate', 'prev_label']
-        Predict both prev0 and prev1
+        Perform forward prediction for multi models.
+
+        Args:
+            data (pd.DataFrame): DataFrame containing the input data.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the predicted results.
         """
         data["prev_label"] = 0
         data["prev_0_prob"] = self.predict_proba(
@@ -177,6 +275,17 @@ class Predictor:
         return data
 
     def forward(self, hist: pd.DataFrame, nohist1: pd.DataFrame, nohisto: pd.DataFrame):
+        """
+        Perform forward prediction using the trained models.
+
+        Args:
+            hist (pd.DataFrame): DataFrame containing historical data.
+            nohist1 (pd.DataFrame): DataFrame containing non-historical data for the first transaction.
+            nohisto (pd.DataFrame): DataFrame containing non-historical data for other transactions.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the predicted results.
+        """
         # 1. model_solo
         nohist1["prob"] = self.predict_proba(
             "solo", nohist1.drop(columns=["txkey", "cano"])
@@ -242,6 +351,12 @@ class Predictor:
         return self.make_prediction(hist, nohist1, nohisto)
 
     def show_result(self, preds: dict) -> None:
+        """
+        Display the evaluation results.
+
+        Args:
+            preds (dict): Dictionary containing the predicted results.
+        """
         # show brief f1 score
         print("\n" + "-" * 20)
         print("name\tf1 score\tprecision\trecall")
@@ -255,6 +370,16 @@ class Predictor:
             )
 
     def inference(self, paths: list, mode: str):
+        """
+        Perform inference on the given paths and mode.
+
+        Args:
+            paths (list): List of paths to the trained models.
+            mode (str): Mode for inference. Should be one of 'val' or 'test'.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the predicted results.
+        """
         assert mode in {"val", "test"}
         if isinstance(paths, str):
             paths = [paths]
@@ -269,7 +394,7 @@ class Predictor:
             preds.append(pred)
             if mode == "val":
                 # make evaluation
-                self.make_evaluatoin(pred)
+                self.make_evaluation(pred)
         preds = pd.concat(preds, axis=0)
 
         if mode == "test":
@@ -285,14 +410,15 @@ class Predictor:
 if __name__ == "__main__":
     # load model
     print("Loading model...")
-    predictor = Predictor(["model/train60/20", "model/train60/21", "model/train60/22"])
+    
+    predictor = Predictor(["/mnt/188/a/ycc6/ntu/fintech_final/model/train60/20", "/mnt/188/a/ycc6/ntu/fintech_final/model/train60/21", "/mnt/188/a/ycc6/ntu/fintech_final/model/train60/22"])
 
     root = "data/history"
     # eval
     # preds = predictor.inference([f"{root}/val", f"{root}/public"], mode="val")
 
     # test
-    output_filename = "tmp"
+    output_filename = "output"
     preds = predictor.inference([f"{root}/private1", f"{root}/public"], mode="test")
     save_data("result", {output_filename: preds})
     sentinel(f"result/{output_filename}.csv")

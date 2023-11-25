@@ -1,10 +1,30 @@
-import pandas as pd
-import numpy as np
-from utils import load_data
+"""
+This file is used to analyze the data.
+Input: raw data to be analyzed
+Output: analysis results (stdout or analysis/*)
+"""
+
+import os
 import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import numpy as np
+import pandas as pd
+
+from utils import load_data
 
 
 def check_null(data):
+    """
+    Check for null values in each column of the given DataFrame.
+
+    Args:
+        data (DataFrame): The input DataFrame to check for null values.
+
+    Returns:
+        None
+    """
     col_names = data.columns
     size = len(data)
     for col in col_names:
@@ -16,6 +36,15 @@ def check_null(data):
 
 
 def compute_corr(train):
+    """
+    Compute the correlation between attributes and the label.
+
+    Args:
+        train (DataFrame): The training dataset.
+
+    Returns:
+        None
+    """
     # check corr between attributes and label
     bool_cols = ["ecfg", "insfg", "bnsfg", "ovrlt", "flbmk", "flg_3dsmk"]
     for col in bool_cols:
@@ -27,6 +56,18 @@ def compute_corr(train):
 
 
 def analyze_col(col, train, test, k=7):
+    """
+    Analyzes a column in the train and test dataframes.
+
+    Args:
+        col (str): The name of the column to analyze.
+        train (pd.DataFrame): The training dataframe.
+        test (pd.DataFrame): The test dataframe.
+        k (int, optional): The number of top popular values to consider. Defaults to 7.
+
+    Returns:
+        None
+    """
     print("=====================================")
     # build a df
     # col 1: col name => top k popular index in train data
@@ -82,7 +123,21 @@ def analyze_col(col, train, test, k=7):
 
 
 def find_significant_cate(col, data):
-    # criteria: 1) proportion > ?% 2) p(label=0) > 0.99?
+    """
+    Find significant categories in a column based on specified criteria.
+
+    Args:
+        col (str): The name of the column to analyze.
+        data (pandas.DataFrame): The DataFrame containing the data.
+
+    Returns:
+        None
+
+    Prints:
+        - The threshold for the proportion of each category.
+        - The length of the DataFrame.
+        - The DataFrame with significant categories and their normal rates.
+    """
     df = data[col].value_counts(normalize=True, dropna=False)
     k = 20
     proportion_th = df.iloc[k] if df.iloc[k] > 0.001 else 0.001
@@ -113,6 +168,16 @@ def find_significant_cate(col, data):
 
 
 def compute_effective_digits(col, data):
+    """
+    Compute the number of effective digits in a given column of data.
+
+    Args:
+        col (str): The name of the column to compute the effective digits for.
+        data (pd.DataFrame): The data containing the column.
+
+    Returns:
+        None
+    """
     dd = data[col]
     target_nunique = dd.nunique()
     for k in range(4, len(str(dd[0]))):
@@ -124,6 +189,15 @@ def compute_effective_digits(col, data):
 
 
 def analyze_cano(data):
+    """
+    Analyzes the data based on the 'cano' column.
+
+    Args:
+        data (DataFrame): The input data containing columns 'locdt', 'loctm', 'cano', and 'label'.
+
+    Returns:
+        None
+    """
     data = data[["locdt", "loctm", "cano", "label"]]
     # group training data by cano
     data = data.groupby("cano")
@@ -170,6 +244,9 @@ def analyze_cano(data):
 
 
 if __name__ == "__main__":
+    '''
+    Run all analysis functions.
+    '''
     hash_cols = ["txkey", "chid", "cano", "mchno", "acqic"]
 
     time_cols = ["locdt", "loctm"]
@@ -187,6 +264,8 @@ if __name__ == "__main__":
 
     print("corr of cate cols and the label:")
     compute_corr(train)
+
+    os.makedirs("./analysis", exist_ok=True)
 
     org_stdout = sys.stdout
     sys.stdout = open("analysis/analysis.txt", "w")

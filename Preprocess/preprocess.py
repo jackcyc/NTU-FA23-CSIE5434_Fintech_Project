@@ -1,11 +1,29 @@
-import pandas as pd
+"""
+This file is used to preprocess the data.
+Input: raw data to be preprocessed
+Output: preprocessed data (data/history/*)
+"""
+import os
+import sys
+
 import numpy as np
+import pandas as pd
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from utils import load_data, save_data
 
 
 def preprocess_base(data, is_train):
     """
     Simple preprocess to reduce file size
+
+    Args:
+        data (pandas.DataFrame): The input data to be preprocessed.
+        is_train (bool): A flag indicating whether the data is for training or not.
+
+    Returns:
+        pandas.DataFrame: The preprocessed data.
     """
     if is_train:
         # 1. turn txkey into serial number
@@ -25,8 +43,22 @@ def preprocess_base(data, is_train):
 
 def preprocess_xgb(data):
     """
-    All attributes are numerical or boolean(one-hot)
-    Special attributes: txkey, cano, abs_time, label
+    Preprocesses the given data for XGBoost-like model.
+
+    Args:
+        data (pandas.DataFrame): The input data to be preprocessed.
+
+    Returns:
+        pandas.DataFrame: The preprocessed data.
+
+    Notes:
+        - All attributes will be numerical or boolean (one-hot encoded).
+        - Special attributes: txkey, cano, abs_time, label.
+        - Drops columns: chid, mchno, acqic.
+        - Converts loctm to abs_time and loctm(secs).
+        - Converts contp, etymd, iterm, hcefg to categorical variables.
+        - Preprocesses sparse categorical variables: mcc, stocn, scity, csmcu.
+        - Sorts the data by cano and abs_time.
     """
     # drop chid, mchno, acqic
     data.drop(columns=["chid", "mchno", "acqic"], inplace=True)
@@ -69,6 +101,17 @@ def preprocess_xgb(data):
 
 
 def preprocess_history(data):
+    """
+    Preprocesses the historical data by splitting it into train, validation, and test sets based on time ranges.
+    For each time range, it performs additional processing steps such as handling records with odd number of occurrences,
+    calculating fraud rates, and saving the processed data.
+
+    Args:
+        data (DataFrame): The historical data to be preprocessed.
+
+    Returns:
+        None
+    """
     # split train, val
     # train: >=0, <50
     # val: >=50, <56
@@ -159,6 +202,16 @@ def preprocess_history(data):
 
 
 def preprocess_sparsecate(data):
+    """
+    Preprocesses the sparse categorical columns in the given data.
+
+    Args:
+        data (pandas.DataFrame): The input data containing sparse categorical columns.
+
+    Returns:
+        pandas.DataFrame: The preprocessed data with sparse categorical columns transformed.
+
+    """
     # sparse cate
     # cateA=>0, cateB=>1, cateC=>2
     # sparse_cate_cols = ["mcc", "stocn", "scity", "csmcu"]
@@ -197,6 +250,16 @@ def preprocess_sparsecate(data):
 
 
 def get_onehot(data, cols):
+    """
+    Apply one-hot encoding to the specified columns in the given DataFrame.
+
+    Args:
+        data (pandas.DataFrame): The input DataFrame.
+        cols (list): A list of column names to apply one-hot encoding.
+
+    Returns:
+        pandas.DataFrame: The DataFrame with one-hot encoded columns.
+    """
     for col in cols:
         data[col] = data[col].astype(int)
         data = pd.concat(
