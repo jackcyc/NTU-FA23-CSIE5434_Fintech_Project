@@ -70,3 +70,4 @@ $ python Model/train.py
 # inference: output will be in result/output.csv
 $ python Model/test.py
 ```
+* our trained models can be downloaded from [gdrive](https://drive.google.com/file/d/1JsPNSk1-PzP0JxN72lNnrlfUS52BRzjz/view?usp=sharing) 
